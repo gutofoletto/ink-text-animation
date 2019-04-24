@@ -1,4 +1,4 @@
-import { h, renderToString, Component } from 'ink';
+import React from 'react';
 import chalkAnimation from 'chalk-animation';
 import PropTypes from 'prop-types';
 
@@ -8,15 +8,15 @@ const delays = {
   glitch: 55,
   radar: 50,
   neon: 500,
+  karaoke: 60,
 };
 
-class TextAnimation extends Component {
+class TextAnimation extends React.Component {
   constructor(props, context) {
     super(props, context);
 
     this.timeout = null;
     this.animation = chalkAnimation[props.name]('').stop();
-
     this.state = {
       frame: '',
     };
@@ -27,10 +27,11 @@ class TextAnimation extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    const { name } = nextProps;
+    const { name } = this.props;
 
-    if (name !== this.props.name) {
-      this.animation = chalkAnimation[name]('').stop();
+    if (name !== nextProps.name) {
+      this.animation = chalkAnimation[nextProps.name]('');
+      this.animation.stop();
     }
   }
 
@@ -43,38 +44,31 @@ class TextAnimation extends Component {
 
     this.update();
 
-    // Using `setTimeout` instead of `setInterval` since the animation can change, thus its delay.
+    // Using `setTimeout` instead of `setInterval`
+    // since the animation can change, thus its delay.
     this.timeout = setTimeout(() => {
       this.start();
     }, delays[name] / speed);
   }
 
   update() {
-    const text = renderToString((
-      <span>{this.props.children}</span>
-    ));
-
-    // There's probably some clashing between `chalk-animation` and Ink's rendering mechanism
-    // (which uses `log-update`). The solution is to remove the ANSI escape sequence at the
-    // start of the frame that we're getting from `chalk-animation` that tells the terminal to
-    // clear the lines.
-    const frame = this.animation.replace(text)
+    const { children } = this.props;
+    const frame = this.animation
+      .replace(children)
       .frame()
-      .replace(/^\u001B\[(\d)F\u001B\[G\u001B\[2K/, ''); // eslint-disable-line no-control-regex
+      .replace(/^\u001B\[(\d)F\u001B\[G\u001B\[2K/, '');
 
-    this.setState({
-      frame,
-    });
+    this.setState({ frame });
   }
 
   stop() {
     clearTimeout(this.timeout);
-
     this.timeout = null;
+    this.animation.destroy();
   }
 
   render() {
-    return (<span>{this.state.frame}</span>);
+    return this.state.frame;
   }
 }
 
@@ -84,17 +78,8 @@ TextAnimation.defaultProps = {
 };
 
 TextAnimation.propTypes = {
-  children: PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.string,
-  ]).isRequired,
-  name: PropTypes.oneOf([
-    'rainbow',
-    'pulse',
-    'glitch',
-    'radar',
-    'neon',
-  ]),
+  children: PropTypes.oneOfType([PropTypes.string]).isRequired,
+  name: PropTypes.oneOf(['rainbow', 'pulse', 'glitch', 'radar', 'neon', 'karaoke']),
   speed: PropTypes.number,
 };
 
